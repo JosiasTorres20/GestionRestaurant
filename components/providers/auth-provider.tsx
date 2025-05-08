@@ -1,9 +1,9 @@
 "use client"
 
 import type React from "react"
-import { setCookie, deleteCookie } from "cookies-next";
+import { setCookie, deleteCookie } from "cookies-next"
 import { createContext, useContext, useEffect, useState } from "react"
-import { useSupabase } from "./supabase-provider"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
 import type { UserRole } from "@/types"
 import crypto from "crypto"
 
@@ -37,7 +37,7 @@ const hashPassword = (password: string, salt: string) => {
 const generateSalt = () => crypto.randomBytes(16).toString("hex")
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { supabase } = useSupabase()
+  const supabase = createBrowserSupabaseClient()
   const [user, setUser] = useState<User | null>(null)
   const [userDetails, setUserDetails] = useState<Record<string, unknown> | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkSession = async () => {
       setIsLoading(true)
       try {
-        let localSession = null;
+        let localSession = null
         try {
           localSession = localStorage.getItem("auth_session")
         } catch {}
@@ -70,7 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!userId) {
-          const { data: { session } } = await supabase.auth.getSession()
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
           if (session) {
             userId = session.user?.id || null
           }
@@ -103,11 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           deleteCookie("auth_session")
           setUser(null)
         }
-      } catch  {
+      } catch {
         try {
           localStorage.removeItem("auth_session")
           deleteCookie("auth_session")
-        } catch  {}
+        } catch {}
         setUser(null)
       } finally {
         setIsLoading(false)
@@ -149,10 +151,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const hashedPassword = hashPassword(password, credential.salt)
 
-      let isPasswordValid = hashedPassword === credential.password_hash;
-      
-      if (process.env.NODE_ENV === 'development' && password === 'password') {
-        isPasswordValid = true;
+      let isPasswordValid = hashedPassword === credential.password_hash
+
+      if (process.env.NODE_ENV === "development" && password === "password") {
+        isPasswordValid = true
       }
 
       if (!isPasswordValid) {
@@ -193,18 +195,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        localStorage.setItem("auth_session", JSON.stringify(sessionData));
+        localStorage.setItem("auth_session", JSON.stringify(sessionData))
       } catch {}
 
       try {
-        setCookie('auth_session', JSON.stringify(sessionData), {
-          path: '/',
+        setCookie("auth_session", JSON.stringify(sessionData), {
+          path: "/",
           expires: expiresAt,
-          sameSite: 'strict',
-          secure: process.env.NODE_ENV === 'production',
-        });
-      } catch  {}
-      
+          sameSite: "strict",
+          secure: process.env.NODE_ENV === "production",
+        })
+      } catch {}
+
       await supabase
         .from("credentials")
         .update({
@@ -304,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { error: null }
-    } catch  {
+    } catch {
       return { error: "An error occurred" }
     }
   }
@@ -345,7 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { error: null }
-    } catch  {
+    } catch {
       return { error: "An error occurred" }
     }
   }

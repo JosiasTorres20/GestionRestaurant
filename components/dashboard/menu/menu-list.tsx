@@ -18,13 +18,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useMenuData, type Menu, type Category, type MenuItem } from "@/hooks/use-menu-data"
+import { useMenuData } from "@/hooks/use-menu-data"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getBranches } from "@/lib/services/branch-service"
 import { useEffect } from "react"
 import { useAuth } from "@/components/providers/auth-provider"
-import type { Branch } from "@/types"
-
+import type { Branch, Menu, Category, MenuItem } from "@/types"
 
 interface MenuListProps {
   menus: Menu[]
@@ -42,9 +41,10 @@ export function MenuList({ menus, isLoading, searchQuery }: MenuListProps) {
     deleteMenuItem,
     updateMenu,
     updateMenuItem,
+    createMenuItem,
   } = useMenuData()
-  const { user, userDetails } = useAuth()
-  const restaurantId = user?.restaurantId || (userDetails && userDetails.restaurant_id) || null
+  const { userDetails } = useAuth()
+  const restaurantId = userDetails?.restaurant_id || null
 
   const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false)
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
@@ -64,7 +64,7 @@ export function MenuList({ menus, isLoading, searchQuery }: MenuListProps) {
 
       try {
         const branchesData = await getBranches(String(restaurantId))
-        setBranches(branchesData)
+        setBranches(branchesData || [])
       } catch (error) {
         console.error("Error al cargar sucursales:", error)
       }
@@ -209,8 +209,8 @@ export function MenuList({ menus, isLoading, searchQuery }: MenuListProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {menu.categories && menu.categories.length > 0 ? (
-                menu.categories.map((category) => (
+              {Array.isArray(menu.categories) && menu.categories.length > 0 ? (
+                menu.categories.map((category: Category) => (
                   <div key={category.id} className="border rounded-md p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium">{category.name}</h3>
@@ -230,8 +230,9 @@ export function MenuList({ menus, isLoading, searchQuery }: MenuListProps) {
                       <p className="text-sm text-muted-foreground mb-2">{category.description}</p>
                     )}
                     <div className="pl-4 space-y-2 mt-3">
-                      {category.items && category.items.length > 0 ? (
-                        category.items.map((item) => (
+                      {(category.items || category.menu_items) &&
+                      ((category.items?.length ?? 0) > 0 || (category.menu_items?.length ?? 0) > 0) ? (
+                        (category.items || category.menu_items || []).map((item) => (
                           <div key={item.id} className="flex items-center justify-between group">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
@@ -312,6 +313,7 @@ export function MenuList({ menus, isLoading, searchQuery }: MenuListProps) {
         categoryId={selectedCategoryForItem}
         submenuId={null}
         onUpdate={updateMenuItem}
+        onSubmit={createMenuItem}
       />
 
       {/* Delete Modals */}

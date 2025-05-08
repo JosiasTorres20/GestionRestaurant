@@ -4,10 +4,10 @@ import { useState } from "react"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Trash } from "lucide-react"
+import { Edit, Trash } from 'lucide-react'
 import { useMenuData } from "@/hooks/use-menu-data"
 import { MenuItemDialog } from "@/components/dashboard/menu/menu-item-dialog"
-import type { MenuItem } from "@/hooks/use-menu-data"
+import type { MenuItem } from "@/types"
 import { useToast } from "@/components/ui/use-toast"
 
 export interface MenuItemCardProps {

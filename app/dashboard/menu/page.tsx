@@ -1,22 +1,23 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, Store } from "lucide-react"
+import { Plus, Search, Store, LayoutGrid, Palette } from "lucide-react"
 import { MenuList } from "@/components/dashboard/menu/menu-list"
 import { MenuPreview } from "@/components/dashboard/menu/menu-preview"
+import { MenuThemeEditor } from "@/components/dashboard/menu/menu-theme-editor"
 import { MenuDialog } from "@/components/dashboard/menu/menu-dialog"
 import { CategoryDialog } from "@/components/dashboard/menu/category-dialog"
-import { MenuDataProvider, useMenuData } from "@/hooks/use-menu-data"
+import { useMenuData } from "@/hooks/use-menu-data"
 import { useAuth } from "@/components/providers/auth-provider"
 import { getBranches } from "@/lib/services/branch-service"
 import type { Branch } from "@/types"
+import { useToast } from "@/components/ui/use-toast"
+import { MenuDataProvider } from "@/hooks/use-menu-data"
+import { Card, CardContent } from "@/components/ui/card"
 
-// Create a wrapper component that uses the context
 function MenuManagementContent() {
   const [activeTab, setActiveTab] = useState("menus")
   const [searchQuery, setSearchQuery] = useState("")
@@ -26,32 +27,53 @@ function MenuManagementContent() {
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
   const [isLoadingBranches, setIsLoadingBranches] = useState(true)
 
-  const { user, userDetails } = useAuth()
-  const restaurantId = user?.restaurantId || (userDetails && userDetails.restaurant_id) || null
+  const { toast } = useToast()
+  const { userDetails } = useAuth()
+  const restaurantId = userDetails?.restaurant_id || null
 
-  const { menus, isLoading, createMenu, resetNewMenuForm, setSelectedMenu } = useMenuData()
+  const {
+    menus,
+    isLoading,
+    setIsLoading,
+    loadMenus,
+    loadBranchMenus,
+    createMenu,
+    updateMenu,
+    resetNewMenuForm,
+    setSelectedMenu,
+    newMenu,
+    selectedMenu,
+  } = useMenuData()
 
-  // Filter menus based on search query and selected branch
   const filteredMenus = useMemo(() => {
-    let filtered = selectedBranchId ? menus.filter((menu) => menu.branch_id === selectedBranchId) : menus
+    let filtered = selectedBranchId ? menus.filter((m) => m.branch_id === selectedBranchId) : menus
 
-    // Apply search filter if there's a search query
     if (searchQuery.trim()) {
-      const searchLower = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase()
       filtered = filtered.filter((menu) => {
-        // Check if menu name matches
-        if (menu.name.toLowerCase().includes(searchLower)) return true
-
-        // Check if any category name matches
-        if (menu.categories?.some((category) => category.name.toLowerCase().includes(searchLower))) return true
-
-        // Check if any menu item name matches
-        if (
-          menu.categories?.some((category) =>
-            category.items?.some((item) => item.name.toLowerCase().includes(searchLower)),
-          )
-        )
+        // Buscar en el nombre y descripción del menú
+        if (menu.name.toLowerCase().includes(q) || (menu.description && menu.description.toLowerCase().includes(q))) {
           return true
+        }
+
+        // Buscar en categorías
+        if (
+          Array.isArray(menu.categories) &&
+          menu.categories.some(
+            (cat) =>
+              cat.name.toLowerCase().includes(q) ||
+              (cat.description && cat.description.toLowerCase().includes(q)) ||
+              // Buscar en items
+              (Array.isArray(cat.items) &&
+                cat.items.some(
+                  (item) =>
+                    item.name.toLowerCase().includes(q) ||
+                    (item.description && item.description.toLowerCase().includes(q)),
+                )),
+          )
+        ) {
+          return true
+        }
 
         return false
       })
@@ -60,38 +82,40 @@ function MenuManagementContent() {
     return filtered
   }, [menus, selectedBranchId, searchQuery])
 
-  // Load branches only once when the component mounts or restaurantId changes
+  // Cargar sucursales al inicio
   useEffect(() => {
     let isMounted = true
 
     const loadBranches = async () => {
       if (!restaurantId) {
-        if (isMounted) setIsLoadingBranches(false)
+        setIsLoadingBranches(false)
         return
       }
 
       try {
         const branchesData = await getBranches(String(restaurantId))
 
-        // Only update state if the component is still mounted
         if (isMounted) {
-          setBranches(branchesData)
+          setBranches(branchesData || [])
 
-          // Only set the selectedBranchId if it hasn't been set yet
-          if (!selectedBranchId && branchesData.length > 0) {
-            const mainBranch = branchesData.find((branch) => branch.is_main)
-            if (mainBranch) {
-              setSelectedBranchId(mainBranch.id)
-            } else if (branchesData[0]) {
-              setSelectedBranchId(branchesData[0].id)
-            }
+          // Seleccionar la sucursal principal por defecto
+          if (!selectedBranchId && branchesData && branchesData.length > 0) {
+            const mainBranch = branchesData.find((b) => b.is_main)
+            setSelectedBranchId(mainBranch?.id || branchesData[0].id)
           }
 
           setIsLoadingBranches(false)
         }
       } catch (error) {
-        console.error("Error al cargar sucursales:", error)
+        console.error("Error loading branches:", error)
+
         if (isMounted) {
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar las sucursales",
+            variant: "destructive",
+          })
+
           setIsLoadingBranches(false)
         }
       }
@@ -99,36 +123,107 @@ function MenuManagementContent() {
 
     loadBranches()
 
-    // Cleanup function to prevent state updates after unmount
     return () => {
       isMounted = false
     }
-  }, [restaurantId, selectedBranchId])
+  }, [restaurantId, selectedBranchId, toast])
 
-  // Handle opening the menu dialog
+  // Cargar menús cuando cambia la sucursal seleccionada
+  useEffect(() => {
+    let isMounted = true
+
+    const loadMenuData = async () => {
+      if (!restaurantId && !selectedBranchId) {
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+
+      try {
+        if (selectedBranchId) {
+          await loadBranchMenus(selectedBranchId)
+        } else if (restaurantId) {
+          await loadMenus(String(restaurantId))
+        }
+      } catch (error) {
+        console.error("Error loading menus:", error)
+
+        if (isMounted) {
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar los menús",
+            variant: "destructive",
+          })
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadMenuData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [restaurantId, selectedBranchId, loadBranchMenus, loadMenus, setIsLoading, toast])
+
   const handleOpenCreateMenuDialog = () => {
-    setSelectedMenu(null) // Asegurarse de que estamos creando un nuevo menú
+    setSelectedMenu(null)
     resetNewMenuForm()
     setIsMenuDialogOpen(true)
   }
 
-  // Handle opening the category dialog
-  const handleOpenCreateCategoryDialog = () => {
-    setIsCategoryDialogOpen(true)
+  const handleCreateMenu = async () => {
+    try {
+      const success = await createMenu(newMenu)
+
+      if (success) {
+        setIsMenuDialogOpen(false)
+      }
+
+      return success
+    } catch (error) {
+      console.error("Error creating menu:", error)
+
+      toast({
+        title: "Error",
+        description: "No se pudo crear el menú",
+        variant: "destructive",
+      })
+
+      return false
+    }
   }
 
-  // Handle branch selection change
-  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedBranchId(e.target.value)
+  const handleUpdateMenu = async () => {
+    try {
+      const success = await updateMenu()
+
+      if (success) {
+        setIsMenuDialogOpen(false)
+      }
+
+      return success
+    } catch (error) {
+      console.error("Error updating menu:", error)
+
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el menú",
+        variant: "destructive",
+      })
+
+      return false
+    }
   }
 
-  // Handle search input change
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
-  }
-
+  // Renderizado del componente
   return (
     <div className="space-y-6">
+      {/* Encabezado */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight gradient-heading">Gestión de Menús</h1>
@@ -148,7 +243,7 @@ function MenuManagementContent() {
           <select
             className="flex h-10 w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={selectedBranchId || ""}
-            onChange={handleBranchChange}
+            onChange={(e) => setSelectedBranchId(e.target.value)}
             disabled={isLoadingBranches}
           >
             <option value="" disabled>
@@ -163,13 +258,23 @@ function MenuManagementContent() {
         )}
       </div>
 
+      {/* Tabs principales */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="menus">Menús</TabsTrigger>
-            <TabsTrigger value="preview">Vista Previa</TabsTrigger>
+            <TabsTrigger value="menus" className="gap-2 items-center">
+              <LayoutGrid className="h-4 w-4" />
+              <span>Menús</span>
+            </TabsTrigger>
+            <TabsTrigger value="preview" className="gap-2 items-center">
+              <Store className="h-4 w-4" />
+              <span>Vista Previa</span>
+            </TabsTrigger>
+            <TabsTrigger value="theme" className="gap-2 items-center">
+              <Palette className="h-4 w-4" />
+              <span>Personalización</span>
+            </TabsTrigger>
           </TabsList>
-
           <div className="flex gap-2 w-full sm:w-auto">
             <div className="relative w-full sm:w-auto">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -178,16 +283,19 @@ function MenuManagementContent() {
                 placeholder="Buscar..."
                 className="pl-9 w-full sm:w-[250px]"
                 value={searchQuery}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-
             <div className="flex gap-2">
               <Button onClick={handleOpenCreateMenuDialog} className="gap-2" disabled={!selectedBranchId}>
                 <Plus className="h-4 w-4" />
                 Nuevo Menú
               </Button>
-              <Button onClick={handleOpenCreateCategoryDialog} className="gap-2" disabled={!selectedBranchId}>
+              <Button
+                onClick={() => setIsCategoryDialogOpen(true)}
+                className="gap-2"
+                disabled={!selectedBranchId || !selectedMenu}
+              >
                 <Plus className="h-4 w-4" />
                 Nueva Categoría
               </Button>
@@ -195,22 +303,46 @@ function MenuManagementContent() {
           </div>
         </div>
 
+        {/* Contenido de las tabs */}
         <TabsContent value="menus" className="space-y-4">
           <MenuList menus={filteredMenus} isLoading={isLoading || isLoadingBranches} searchQuery={searchQuery} />
         </TabsContent>
 
         <TabsContent value="preview" className="space-y-4">
-          <MenuPreview menus={filteredMenus} />
+          {selectedMenu ? (
+            <MenuPreview menu={selectedMenu} />
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10">
+                <Store className="h-10 w-10 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-center">Selecciona un menú para ver la vista previa</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="theme" className="space-y-4">
+          {selectedMenu ? (
+            <MenuThemeEditor menuId={selectedMenu.id} />
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10">
+                <Palette className="h-10 w-10 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-center">Selecciona un menú para personalizar su apariencia</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
+      {/* Diálogos */}
       <MenuDialog
         open={isMenuDialogOpen}
         onOpenChange={(open) => {
           if (!open) setSelectedMenu(null)
           setIsMenuDialogOpen(open)
         }}
-        onSubmit={createMenu}
+        onSubmit={selectedMenu ? handleUpdateMenu : handleCreateMenu}
         branchId={selectedBranchId || undefined}
         branches={branches}
       />
@@ -218,6 +350,7 @@ function MenuManagementContent() {
       <CategoryDialog
         open={isCategoryDialogOpen}
         onOpenChange={setIsCategoryDialogOpen}
+        // menuId={selectedMenu?.id}
         branchId={selectedBranchId || undefined}
         branches={branches}
       />
@@ -225,8 +358,7 @@ function MenuManagementContent() {
   )
 }
 
-
-export default function MenuManagement() {
+export default function MenuManagementPage() {
   return (
     <MenuDataProvider>
       <MenuManagementContent />

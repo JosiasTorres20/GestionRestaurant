@@ -17,56 +17,91 @@ export type Restaurant = {
   whatsapp: string | null
   is_active: boolean
 }
+
+export interface Menu {
+  id: string
+  name: string
+  description?: string | null
+  is_active: boolean
+  branch_id: string
+  restaurant_id?: string
+  created_at?: string
+  updated_at?: string | null
+  categories?: Category[]
+  branches?: {
+    id: string
+    name: string
+    is_main: boolean
+    whatsapp?: string
+  }
+  branch?: {
+    id: string
+    name: string
+    is_main: boolean
+    whatsapp?: string
+  }
+  theme?: ThemeSettings | null
+}
+
+export interface Category {
+  id: string
+  name: string
+  description?: string | null
+  order?: number
+  restaurant_id: string
+  branch_id: string
+  // Eliminamos menu_id ya que no existe en la tabla
+  created_at?: string
+  updated_at?: string | null
+  items?: MenuItem[]
+  menu_items?: MenuItem[] // Para respuesta de Supabase
+}
+
 export interface MenuItem {
   id: string
   name: string
-  description?: string
+  description?: string | null
   price: number
-  image_url?: string
+  image_url?: string | null
   is_available: boolean
+  is_featured?: boolean
   category_id: string
-  submenu_id?: string | null
+  order?: number
+  created_at?: string
+  updated_at?: string | null
 }
 
-export type Submenu = {
-  id: string
-  name: string
-  description: string
+// Nuevo tipo para configuración de temas
+export interface ThemeSettings {
+  id?: string
   menu_id: string
-  order: number
-  created_at: string
-  items?: MenuItem[]
+  primary_color: string
+  secondary_color: string
+  font_family: string
+  logo_url: string | null
+  background_image_url: string | null
+  show_prices: boolean
+  enable_ordering: boolean
+  header_style: "default" | "minimal" | "fullwidth"
+  footer_style: "default" | "minimal" | "detailed"
+  item_layout: "grid" | "list" | "compact"
+  created_at?: string
+  updated_at?: string | null
 }
 
-export type Menu = {
-  items: boolean
+// Tipo para sucursales
+export interface Branch {
   id: string
-  name: string
-  description: string
   restaurant_id: string
-  branch_id?: string // Añadimos referencia a la sucursal
-  is_active: boolean
-  order: number
-  created_at: string
-  submenus?: Submenu[]
-}
-
-// Nuevo tipo para sucursales
-export type Branch = {
-  id: string
   name: string
-  address: string
-  phone: string
-  whatsapp: string
-  email: string
+  address?: string
+  phone?: string
+  whatsapp?: string
+  email?: string
   is_main: boolean
   is_active: boolean
-  restaurant_id: string
-  created_at: string
-  location?: {
-    latitude: number
-    longitude: number
-  }
+  created_at?: string
+  updated_at?: string
 }
 
 // Tipos para formularios
@@ -75,12 +110,15 @@ export type NewMenuFormData = {
   description: string
   is_active: boolean
   restaurant_id?: string
-  branch_id?: string // Añadimos campo para sucursal
+  branch_id?: string
 }
 
-export type NewSubmenuFormData = {
+export type NewCategoryFormData = {
   name: string
   description: string
+  restaurant_id?: string
+  branch_id?: string
+  order?: number
   menu_id: string
 }
 
@@ -90,11 +128,11 @@ export type NewMenuItemFormData = {
   price: number
   image_url: string
   is_available: boolean
-  submenu_id: string
+  is_featured?: boolean
   category_id?: string
+  order?: number
 }
 
-// Nuevo tipo para formulario de sucursales
 export type BranchFormData = {
   name: string
   address: string
@@ -108,7 +146,6 @@ export type BranchFormData = {
     longitude: number
   }
 }
-
 
 export type Order = {
   id: string

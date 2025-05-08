@@ -4,7 +4,7 @@ import { useAuth } from "../components/providers/auth-provider"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
-export const useRequireAuth = (redirectUrl = '/login') => {
+export const useRequireAuth = (redirectUrl = "/login") => {
   const { user, isLoading } = useAuth()
   const router = useRouter()
 

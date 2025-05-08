@@ -1,106 +1,178 @@
-import { createClient } from "@/lib/supabase"
-import type { Branch, BranchFormData } from "@/types"
+import type { Branch } from "@/types"
 
-// Obtener todas las sucursales de un restaurante
+/**
+ * Obtiene todas las sucursales de un restaurante
+ * @param restaurantId - ID del restaurante
+ * @returns Promise con el array de sucursales
+ */
 export async function getBranches(restaurantId: string): Promise<Branch[]> {
-  const supabase = createClient()
-
-  const { data, error } = await supabase
-    .from("branches")
-    .select("*")
-    .eq("restaurant_id", restaurantId)
-    .order("is_main", { ascending: false })
-    .order("name", { ascending: true })
-
-  if (error) {
-    console.error("Error al obtener sucursales:", error)
-    throw error
-  }
-
-  return data || []
-}
-
-// Obtener una sucursal específica
-export async function getBranch(branchId: string): Promise<Branch> {
-  const supabase = createClient()
-
-  const { data, error } = await supabase.from("branches").select("*").eq("id", branchId).single()
-
-  if (error) {
-    console.error("Error al obtener sucursal:", error)
-    throw error
-  }
-
-  return data
-}
-
-// Crear una nueva sucursal
-export async function createBranch(restaurantId: string, branchData: BranchFormData): Promise<Branch> {
-  const supabase = createClient()
-
-  const { data, error } = await supabase
-    .from("branches")
-    .insert({
-      ...branchData,
-      restaurant_id: restaurantId,
+  try {
+    // Asegurarse de incluir las credenciales para enviar cookies
+    const response = await fetch(`/api/restaurants/${restaurantId}/branches`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // Importante: incluir cookies de autenticación
+      cache: "no-store",
     })
-    .select()
-    .single()
 
-  if (error) {
-    console.error("Error al crear sucursal:", error)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData.error || `Error ${response.status}: ${response.statusText}`
+      
+      // Crear un error más específico para problemas de autenticación
+      if (response.status === 401) {
+        throw new Error(`401: ${errorMessage}`)
+      }
+      
+      throw new Error(errorMessage)
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error("Error fetching branches:", error)
     throw error
   }
-
-  return data
 }
 
-// Actualizar una sucursal existente
-export async function updateBranch(branchId: string, branchData: Partial<BranchFormData>): Promise<Branch> {
-  const supabase = createClient()
-
-  const { data, error } = await supabase.from("branches").update(branchData).eq("id", branchId).select().single()
-
-  if (error) {
-    console.error("Error al actualizar sucursal:", error)
-    throw error
-  }
-
-  return data
-}
-
-// Eliminar una sucursal
+/**
+ * Elimina una sucursal
+ * @param branchId - ID de la sucursal a eliminar
+ */
 export async function deleteBranch(branchId: string): Promise<void> {
-  const supabase = createClient()
+  try {
+    const response = await fetch(`/api/branches/${branchId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // Importante: incluir cookies de autenticación
+    })
 
-  const { error } = await supabase.from("branches").delete().eq("id", branchId)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData.error || `Error ${response.status}: ${response.statusText}`
+      
+      // Crear un error más específico para problemas de autenticación
+      if (response.status === 401) {
+        throw new Error(`401: ${errorMessage}`)
+      }
+      
+      throw new Error(errorMessage)
+    }
 
-  if (error) {
-    console.error("Error al eliminar sucursal:", error)
+    return await response.json()
+  } catch (error) {
+    console.error("Error deleting branch:", error)
     throw error
   }
 }
 
-// Establecer una sucursal como principal
+/**
+ * Establece una sucursal como principal
+ * @param branchId - ID de la sucursal a establecer como principal
+ * @param restaurantId - ID del restaurante
+ */
 export async function setMainBranch(branchId: string, restaurantId: string): Promise<void> {
-  const supabase = createClient()
+  try {
+    const response = await fetch(`/api/restaurants/${restaurantId}/branches/main`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // Importante: incluir cookies de autenticación
+      body: JSON.stringify({ branch_id: branchId }),
+    })
 
-  // Primero, quitamos el estado principal de todas las sucursales
-  const { error: updateError } = await supabase
-    .from("branches")
-    .update({ is_main: false })
-    .eq("restaurant_id", restaurantId)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData.error || `Error ${response.status}: ${response.statusText}`
+      
+      // Crear un error más específico para problemas de autenticación
+      if (response.status === 401) {
+        throw new Error(`401: ${errorMessage}`)
+      }
+      
+      throw new Error(errorMessage)
+    }
 
-  if (updateError) {
-    console.error("Error al actualizar sucursales:", updateError)
-    throw updateError
+    return await response.json()
+  } catch (error) {
+    console.error("Error setting main branch:", error)
+    throw error
   }
+}
 
-  // Luego, establecemos la sucursal seleccionada como principal
-  const { error } = await supabase.from("branches").update({ is_main: true }).eq("id", branchId)
+/**
+ * Crea una nueva sucursal
+ * @param branchData - Datos de la sucursal a crear
+ * @param restaurantId - ID del restaurante
+ * @returns Promise con la sucursal creada
+ */
+export async function createBranch(branchData: Partial<Branch>, restaurantId: string): Promise<Branch> {
+  try {
+    const response = await fetch(`/api/restaurants/${restaurantId}/branches`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // Importante: incluir cookies de autenticación
+      body: JSON.stringify(branchData),
+    })
 
-  if (error) {
-    console.error("Error al establecer sucursal principal:", error)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData.error || `Error ${response.status}: ${response.statusText}`
+      
+      // Crear un error más específico para problemas de autenticación
+      if (response.status === 401) {
+        throw new Error(`401: ${errorMessage}`)
+      }
+      
+      throw new Error(errorMessage)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error creating branch:", error)
+    throw error
+  }
+}
+
+/**
+ * Actualiza una sucursal existente
+ * @param branchId - ID de la sucursal a actualizar
+ * @param branchData - Datos actualizados de la sucursal
+ * @returns Promise con la sucursal actualizada
+ */
+export async function updateBranch(branchId: string, branchData: Partial<Branch>): Promise<Branch> {
+  try {
+    const response = await fetch(`/api/branches/${branchId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // Importante: incluir cookies de autenticación
+      body: JSON.stringify(branchData),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData.error || `Error ${response.status}: ${response.statusText}`
+      
+      // Crear un error más específico para problemas de autenticación
+      if (response.status === 401) {
+        throw new Error(`401: ${errorMessage}`)
+      }
+      
+      throw new Error(errorMessage)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error updating branch:", error)
     throw error
   }
 }

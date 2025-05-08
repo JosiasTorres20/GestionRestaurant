@@ -51,7 +51,7 @@ export function MenuDialog({ open, onOpenChange, onSubmit, onUpdate, branchId, b
 
   const handleSubmit = async () => {
     // Validar campos obligatorios
-    if (selectedMenu && !selectedMenu.name.trim()) {
+    if (selectedMenu && !selectedMenu.name?.trim()) {
       toast({
         title: "Error",
         description: "El nombre del menú es obligatorio",

@@ -88,7 +88,7 @@ export function useUserData() {
           return {
             ...userData,
             username: credential?.username || "",
-            restaurant_name: userData.restaurants?.name,
+            restaurant_name: userData.restaurants?.[0]?.name,
           }
         })
 

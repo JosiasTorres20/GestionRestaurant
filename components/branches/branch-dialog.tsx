@@ -11,67 +11,72 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { createBranch, updateBranch } from "@/lib/services/branch-service"
-import type { Branch, BranchFormData } from "@/types"
+import type { Branch } from "@/types"
 
 interface BranchDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   branch: Branch | null
   restaurantId: string
-  onBranchUpdated: (branch: Branch, isNew: boolean) => void
+  onBranchUpdated: () => void
 }
 
 export function BranchDialog({ open, onOpenChange, branch, restaurantId, onBranchUpdated }: BranchDialogProps) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<BranchFormData>({
+
+  const [formData, setFormData] = useState({
     name: "",
     address: "",
     phone: "",
-    whatsapp: "",
     email: "",
-    is_main: false,
     is_active: true,
+    is_main: false,
   })
 
   // Cargar datos de la sucursal si estamos editando
   useEffect(() => {
     if (branch) {
       setFormData({
-        name: branch.name,
-        address: branch.address,
+        name: branch.name || "",
+        address: branch.address || "",
         phone: branch.phone || "",
-        whatsapp: branch.whatsapp || "",
         email: branch.email || "",
-        is_main: branch.is_main,
-        is_active: branch.is_active,
-        location: branch.location,
+        is_active: branch.is_active !== undefined ? branch.is_active : true,
+        is_main: branch.is_main || false,
       })
     } else {
-      // Resetear formulario para nueva sucursal
+      // Resetear el formulario si estamos creando
       setFormData({
         name: "",
         address: "",
         phone: "",
-        whatsapp: "",
         email: "",
-        is_main: false,
         is_active: true,
+        is_main: false,
       })
     }
   }, [branch, open])
 
   const handleSubmit = async () => {
     // Validar campos obligatorios
-    if (!formData.name || !formData.address) {
+    if (!formData.name.trim()) {
       toast({
         title: "Error",
-        description: "El nombre y la dirección son obligatorios",
+        description: "El nombre de la sucursal es obligatorio",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.address.trim()) {
+      toast({
+        title: "Error",
+        description: "La dirección de la sucursal es obligatoria",
         variant: "destructive",
       })
       return
@@ -80,31 +85,29 @@ export function BranchDialog({ open, onOpenChange, branch, restaurantId, onBranc
     setIsSubmitting(true)
 
     try {
-      let updatedBranch: Branch
-
       if (branch) {
         // Actualizar sucursal existente
-        updatedBranch = await updateBranch(branch.id, formData)
+        await updateBranch(branch.id, formData)
         toast({
           title: "Sucursal actualizada",
-          description: "La sucursal ha sido actualizada correctamente",
+          description: "La sucursal se ha actualizado correctamente",
         })
       } else {
         // Crear nueva sucursal
-        updatedBranch = await createBranch(restaurantId, formData)
+        await createBranch(formData, restaurantId)
         toast({
           title: "Sucursal creada",
-          description: "La sucursal ha sido creada correctamente",
+          description: "La sucursal se ha creado correctamente",
         })
       }
 
-      onBranchUpdated(updatedBranch, !branch)
+      onBranchUpdated()
       onOpenChange(false)
     } catch (error) {
-      console.error("Error al guardar sucursal:", error)
+      console.error("Error al guardar la sucursal:", error)
       toast({
         title: "Error",
-        description: "No se pudo guardar la sucursal",
+        description: "Ocurrió un error al guardar la sucursal",
         variant: "destructive",
       })
     } finally {
@@ -114,20 +117,18 @@ export function BranchDialog({ open, onOpenChange, branch, restaurantId, onBranc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{branch ? "Editar Sucursal" : "Crear Nueva Sucursal"}</DialogTitle>
           <DialogDescription>
-            {branch
-              ? "Actualiza la información de la sucursal"
-              : "Completa la información para crear una nueva sucursal"}
+            {branch ? "Actualiza la información de tu sucursal" : "Crea una nueva sucursal para tu restaurante"}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Nombre de la Sucursal*</Label>
+            <Label htmlFor="branch-name">Nombre</Label>
             <Input
-              id="name"
+              id="branch-name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Ej: Sucursal Centro"
@@ -135,39 +136,29 @@ export function BranchDialog({ open, onOpenChange, branch, restaurantId, onBranc
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="address">Dirección*</Label>
-            <Textarea
-              id="address"
+            <Label htmlFor="branch-address">Dirección</Label>
+            <Input
+              id="branch-address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Dirección completa de la sucursal"
+              placeholder="Ej: Av. Principal 123"
               disabled={isSubmitting}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="phone">Teléfono</Label>
+            <Label htmlFor="branch-phone">Teléfono (opcional)</Label>
             <Input
-              id="phone"
+              id="branch-phone"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="Ej: +1 234 567 8900"
+              placeholder="Ej: +1234567890"
               disabled={isSubmitting}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="whatsapp">WhatsApp</Label>
+            <Label htmlFor="branch-email">Email (opcional)</Label>
             <Input
-              id="whatsapp"
-              value={formData.whatsapp}
-              onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-              placeholder="Ej: +1 234 567 8900"
-              disabled={isSubmitting}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
-            <Input
-              id="email"
+              id="branch-email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -176,25 +167,25 @@ export function BranchDialog({ open, onOpenChange, branch, restaurantId, onBranc
             />
           </div>
           <div className="flex items-center gap-2">
-            <Label htmlFor="is_main" className="flex-1">
-              Sucursal Principal
+            <Label htmlFor="branch-active" className="flex-1">
+              Sucursal activa
             </Label>
             <Switch
-              id="is_main"
-              checked={formData.is_main}
-              onCheckedChange={(checked) => setFormData({ ...formData, is_main: checked })}
+              id="branch-active"
+              checked={formData.is_active}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               disabled={isSubmitting}
             />
           </div>
           <div className="flex items-center gap-2">
-            <Label htmlFor="is_active" className="flex-1">
-              Sucursal Activa
+            <Label htmlFor="branch-main" className="flex-1">
+              Sucursal principal
             </Label>
             <Switch
-              id="is_active"
-              checked={formData.is_active}
-              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-              disabled={isSubmitting}
+              id="branch-main"
+              checked={formData.is_main}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_main: checked })}
+              disabled={isSubmitting || (branch ? !!branch.is_main : false)}
             />
           </div>
         </div>

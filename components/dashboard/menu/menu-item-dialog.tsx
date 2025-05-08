@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button"
 import { DollarSign, ImageIcon } from "lucide-react"
 import { useMenuData } from "@/hooks/use-menu-data"
 import { useToast } from "@/components/ui/use-toast"
-import type { MenuItem } from "@/types/index"
 
 interface MenuItemDialogProps {
   open: boolean
@@ -42,29 +41,64 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
     updateMenuItem,
   } = useMenuData()
 
+  const [localMenuItem, setLocalMenuItem] = useState({
+    name: "",
+    description: "",
+    price: 0,
+    image_url: "",
+    is_available: true,
+    category_id: "",
+    submenu_id: null as string | null,
+  })
+
   useEffect(() => {
-    if (open && categoryId && !selectedMenuItem && newMenuItem?.category_id !== categoryId) {
-      setNewMenuItem({
-        name: "",
-        description: "",
-        price: 0,
-        image_url: "",
-        is_available: true,
-        category_id: categoryId,
-        submenu_id: submenuId || null,
-      } as MenuItem)
+    if (open) {
+      if (selectedMenuItem) {
+        // Initialize local state with selected item values
+        setLocalMenuItem({
+          name: selectedMenuItem.name || "",
+          description: selectedMenuItem.description || "",
+          price: selectedMenuItem.price || 0,
+          image_url: selectedMenuItem.image_url || "",
+          is_available: selectedMenuItem.is_available !== false,
+          category_id: selectedMenuItem.category_id || "",
+          submenu_id: selectedMenuItem.submenu_id || null,
+        })
+      } else if (categoryId) {
+        // Initialize local state for new item
+        setLocalMenuItem({
+          name: "",
+          description: "",
+          price: 0,
+          image_url: "",
+          is_available: true,
+          category_id: categoryId,
+          submenu_id: submenuId || null,
+        })
+
+        // Only update newMenuItem when not editing
+        setNewMenuItem({
+          name: "",
+          description: "",
+          price: 0,
+          image_url: "",
+          is_available: true,
+          category_id: categoryId,
+          submenu_id: submenuId || null,
+        })
+      }
     }
 
     // Limpiar estado al cerrar
     if (!open) {
       setIsSubmitting(false)
     }
-  }, [open, categoryId, submenuId, selectedMenuItem, newMenuItem?.category_id, setNewMenuItem])
+  }, [open, categoryId, submenuId, selectedMenuItem, setNewMenuItem])
 
   const handleSubmit = async () => {
-    const itemToValidate = selectedMenuItem || newMenuItem
+    const itemToValidate = selectedMenuItem ? localMenuItem : newMenuItem
 
-    if (!itemToValidate.name?.trim()) {
+    if (!itemToValidate?.name?.trim()) {
       toast({
         title: "Error",
         description: "El nombre del item es obligatorio",
@@ -97,6 +131,15 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
       let success = false
 
       if (selectedMenuItem) {
+        // Update selectedMenuItem with local values
+        setSelectedMenuItem({
+          ...selectedMenuItem,
+          name: localMenuItem.name,
+          description: localMenuItem.description,
+          price: localMenuItem.price,
+          image_url: localMenuItem.image_url,
+          is_available: localMenuItem.is_available,
+        })
         success = await updateMenuItem()
       } else {
         success = await createMenuItem()
@@ -135,10 +178,10 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
             <Label htmlFor="item-name">Nombre</Label>
             <Input
               id="item-name"
-              value={selectedMenuItem ? selectedMenuItem.name : newMenuItem.name}
+              value={selectedMenuItem ? localMenuItem.name : newMenuItem.name}
               onChange={(e) =>
                 selectedMenuItem
-                  ? setSelectedMenuItem({ ...selectedMenuItem, name: e.target.value })
+                  ? setLocalMenuItem({ ...localMenuItem, name: e.target.value })
                   : setNewMenuItem({ ...newMenuItem, name: e.target.value })
               }
               placeholder="Ej: Ensalada César"
@@ -149,10 +192,10 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
             <Label htmlFor="item-description">Descripción (opcional)</Label>
             <Textarea
               id="item-description"
-              value={selectedMenuItem ? (selectedMenuItem.description ?? "") : (newMenuItem.description ?? "")}
+              value={selectedMenuItem ? localMenuItem.description : (newMenuItem.description ?? "")}
               onChange={(e) =>
                 selectedMenuItem
-                  ? setSelectedMenuItem({ ...selectedMenuItem, description: e.target.value })
+                  ? setLocalMenuItem({ ...localMenuItem, description: e.target.value })
                   : setNewMenuItem({ ...newMenuItem, description: e.target.value })
               }
               placeholder="Breve descripción del plato"
@@ -167,10 +210,10 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
                 id="item-price"
                 type="number"
                 step="0.01"
-                value={selectedMenuItem ? selectedMenuItem.price : newMenuItem.price}
+                value={selectedMenuItem ? localMenuItem.price : newMenuItem.price}
                 onChange={(e) =>
                   selectedMenuItem
-                    ? setSelectedMenuItem({ ...selectedMenuItem, price: Number(e.target.value) || 0 })
+                    ? setLocalMenuItem({ ...localMenuItem, price: Number(e.target.value) || 0 })
                     : setNewMenuItem({ ...newMenuItem, price: Number(e.target.value) || 0 })
                 }
                 placeholder="0.00"
@@ -185,10 +228,10 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
               <ImageIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="item-image"
-                value={selectedMenuItem ? (selectedMenuItem.image_url ?? "") : (newMenuItem.image_url ?? "")}
+                value={selectedMenuItem ? (localMenuItem.image_url ?? "") : (newMenuItem.image_url ?? "")}
                 onChange={(e) =>
                   selectedMenuItem
-                    ? setSelectedMenuItem({ ...selectedMenuItem, image_url: e.target.value })
+                    ? setLocalMenuItem({ ...localMenuItem, image_url: e.target.value })
                     : setNewMenuItem({ ...newMenuItem, image_url: e.target.value })
                 }
                 placeholder="https://ejemplo.com/imagen.jpg"
@@ -198,7 +241,7 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
             </div>
           </div>
 
-          {!selectedMenuItem && !categoryId && (
+          {!selectedMenuItem && !categoryId && categories && categories.length > 0 && (
             <div className="grid gap-2">
               <Label htmlFor="item-category">Categoría</Label>
               <select
@@ -224,10 +267,10 @@ export function MenuItemDialog({ open, onOpenChange, categoryId, submenuId }: Me
             </Label>
             <Switch
               id="item-available"
-              checked={selectedMenuItem ? selectedMenuItem.is_available : newMenuItem.is_available}
+              checked={selectedMenuItem ? localMenuItem.is_available : newMenuItem.is_available}
               onCheckedChange={(checked) =>
                 selectedMenuItem
-                  ? setSelectedMenuItem({ ...selectedMenuItem, is_available: checked })
+                  ? setLocalMenuItem({ ...localMenuItem, is_available: checked })
                   : setNewMenuItem({ ...newMenuItem, is_available: checked })
               }
               disabled={isSubmitting}

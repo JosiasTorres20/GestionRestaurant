@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
 import type { Session, SupabaseClient } from "@supabase/supabase-js"
 
 const SupabaseContext = createContext<{
@@ -16,7 +16,7 @@ const SupabaseContext = createContext<{
 })
 
 export const SupabaseProvider = ({ children }: { children: React.ReactNode }) => {
-  const [supabase] = useState(() => createClientComponentClient())
+  const [supabase] = useState(() => createBrowserSupabaseClient())
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -40,11 +40,7 @@ export const SupabaseProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [supabase])
 
-  return (
-    <SupabaseContext.Provider value={{ supabase, session, isLoading }}>
-      {children}
-    </SupabaseContext.Provider>
-  )
+  return <SupabaseContext.Provider value={{ supabase, session, isLoading }}>{children}</SupabaseContext.Provider>
 }
 
 export const useSupabase = () => {

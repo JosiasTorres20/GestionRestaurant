@@ -1,49 +1,53 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  // Log all cookies for debugging
+  console.log(
+    "Cookies in middleware:",
+    req.cookies.getAll().map((c) => `${c.name}: ${c.value.substring(0, 20)}...`),
+  )
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Check for auth_session cookie
+  const authSessionCookie = req.cookies.get("auth_session")
+  console.log("Auth session cookie exists:", !!authSessionCookie)
 
-  const authSession = req.cookies.get("auth_session")?.value;
-  let isAuthenticated = false;
+  let isAuthenticated = false
 
-  if (authSession) {
+  if (authSessionCookie) {
     try {
-      const sessionData = JSON.parse(authSession);
+      const sessionData = JSON.parse(authSessionCookie.value)
+      // Check if session has userId and is not expired
       if (sessionData && sessionData.userId && sessionData.expiresAt) {
-        isAuthenticated = new Date(sessionData.expiresAt) > new Date();
-        if (!isAuthenticated) {
-          res.cookies.delete("auth_session");
-        }
+        const expiresAt = new Date(sessionData.expiresAt)
+        isAuthenticated = expiresAt > new Date()
+        console.log("Auth session valid:", isAuthenticated, "Expires:", expiresAt.toISOString())
       }
-    } catch {
-      res.cookies.delete("auth_session");
+    } catch (error) {
+      console.error("Error parsing auth_session cookie:", error)
     }
   }
 
-  isAuthenticated = isAuthenticated || !!session;
-
+  // Protected routes
   if (req.nextUrl.pathname.startsWith("/dashboard")) {
     if (!isAuthenticated) {
-      const loginUrl = new URL("/login", req.url);
-      return NextResponse.redirect(loginUrl);
+      console.log("Not authenticated, redirecting to login")
+      const loginUrl = new URL("/login", req.url)
+      return NextResponse.redirect(loginUrl)
     }
+    console.log("Authenticated, allowing access to dashboard")
   }
 
-  if (req.nextUrl.pathname === "/login" && isAuthenticated) {
-    const dashboardUrl = new URL("/dashboard", req.url);
-    return NextResponse.redirect(dashboardUrl);
+  // Auth routes (redirect to dashboard if already authenticated)
+  if ((req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/") && isAuthenticated) {
+    console.log("Already authenticated, redirecting to dashboard")
+    const dashboardUrl = new URL("/dashboard", req.url)
+    return NextResponse.redirect(dashboardUrl)
   }
 
-  return res;
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: ["/dashboard/:path*", "/login", "/"],
-};
+}

@@ -1,29 +1,33 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Search, Plus, MapPin, Phone, Mail, Store } from "lucide-react"
+import { SearchBar } from "@/components/branches/search-bar"
+import { BranchCard } from "@/components/branches/branch-card"
 import { BranchDialog } from "@/components/branches/branch-dialog"
+import { EmptyBranches } from "@/components/branches/empty-branches"
+import { BranchesLoadingSkeleton } from "@/components/branches/branches-loading-skeleton"
+import { useBranches } from "@/hooks/branches-hook"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { Branch } from "@/types"
-import { useBranches } from "@/hooks/branches/branches-hook"
 
 export default function BranchesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
-  
-  const {
-    branches,
-    isLoading,
-    restaurantId,
-    handleDeleteBranch,
-    handleSetMainBranch,
-    handleBranchesUpdated
-  } = useBranches()
+  const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null)
+  const [branchToSetMain, setBranchToSetMain] = useState<Branch | null>(null)
 
+  const { branches, isLoading, restaurantId, handleDeleteBranch, handleSetMainBranch, handleBranchesUpdated } =
+    useBranches()
 
   const filteredBranches = branches.filter(
     (branch) =>
@@ -31,40 +35,36 @@ export default function BranchesPage() {
       branch.address.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleEditBranch = (branch: Branch) => {
-    setSelectedBranch(branch)
-    setIsDialogOpen(true)
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query)
   }
+
   const handleCreateBranch = () => {
     setSelectedBranch(null)
     setIsDialogOpen(true)
   }
 
+  const handleEditBranch = (branch: Branch) => {
+    setSelectedBranch(branch)
+    setIsDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (branchToDelete) {
+      await handleDeleteBranch(branchToDelete)
+      setBranchToDelete(null)
+    }
+  }
+
+  const handleConfirmSetMain = async () => {
+    if (branchToSetMain) {
+      await handleSetMainBranch(branchToSetMain)
+      setBranchToSetMain(null)
+    }
+  }
+
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight gradient-heading">Sucursales</h1>
-          <p className="text-muted-foreground">Cargando información de sucursales...</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader className="pb-2">
-                <div className="h-6 w-24 rounded-md bg-muted"></div>
-                <div className="h-4 w-32 rounded-md bg-muted"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="h-4 w-full rounded-md bg-muted"></div>
-                  <div className="h-4 w-3/4 rounded-md bg-muted"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    )
+    return <BranchesLoadingSkeleton />
   }
 
   return (
@@ -76,115 +76,25 @@ export default function BranchesPage() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="relative w-full sm:w-auto">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar sucursales..."
-            className="pl-9 w-full sm:w-[300px]"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <Button onClick={handleCreateBranch} className="gap-2 w-full sm:w-auto brand-button">
-          <Plus className="h-4 w-4" />
-          Nueva Sucursal
-        </Button>
-      </div>
+      <SearchBar searchQuery={searchQuery} onSearchChange={handleSearchChange} onCreate={handleCreateBranch} />
 
       {filteredBranches.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-10">
-            <Store className="mb-4 h-12 w-12 text-muted-foreground" />
-            <p className="text-lg font-medium">No hay sucursales</p>
-            <p className="text-sm text-muted-foreground">
-              {searchQuery ? "No se encontraron resultados para tu búsqueda" : "Crea tu primera sucursal para comenzar"}
-            </p>
-            {!searchQuery && (
-              <Button onClick={handleCreateBranch} className="mt-4 brand-button">
-                Crear Sucursal
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyBranches searchQuery={searchQuery} onCreate={handleCreateBranch} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredBranches.map((branch) => (
-            <Card key={branch.id} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {branch.name}
-                      {branch.is_main && <Badge className="bg-primary text-primary-foreground">Principal</Badge>}
-                      {!branch.is_active && (
-                        <Badge variant="outline" className="text-muted-foreground">
-                          Inactiva
-                        </Badge>
-                      )}
-                    </CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pb-2">
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <span className="text-sm">{branch.address}</span>
-                  </div>
-                  {branch.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{branch.phone}</span>
-                    </div>
-                  )}
-                  {branch.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{branch.email}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEditBranch(branch)}
-                  className="border-brand-primary text-brand-primary"
-                >
-                  Editar
-                </Button>
-                <div className="flex gap-2">
-                  {!branch.is_main && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSetMainBranch(branch)}
-                      className="border-brand-primary text-brand-primary"
-                    >
-                      Establecer como Principal
-                    </Button>
-                  )}
-                  {!branch.is_main && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => handleDeleteBranch(branch)}
-                    >
-                      Eliminar
-                    </Button>
-                  )}
-                </div>
-              </CardFooter>
-            </Card>
+            <BranchCard
+              key={branch.id}
+              branch={branch}
+              onEdit={handleEditBranch}
+              onDelete={(branch) => setBranchToDelete(branch)}
+              onSetMain={(branch) => setBranchToSetMain(branch)}
+            />
           ))}
         </div>
       )}
 
+      {/* Diálogo de creación/edición de sucursal */}
       {restaurantId && (
         <BranchDialog
           open={isDialogOpen}
@@ -194,6 +104,39 @@ export default function BranchesPage() {
           onBranchUpdated={handleBranchesUpdated}
         />
       )}
+
+      {/* Diálogo de confirmación para eliminar */}
+      <AlertDialog open={!!branchToDelete} onOpenChange={() => setBranchToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará la sucursal {branchToDelete?.name} y no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de confirmación para establecer como principal */}
+      <AlertDialog open={!!branchToSetMain} onOpenChange={() => setBranchToSetMain(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Establecer como sucursal principal</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas establecer {branchToSetMain?.name} como la sucursal principal? La sucursal
+              principal actual dejará de serlo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSetMain}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
