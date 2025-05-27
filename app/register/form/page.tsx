@@ -95,6 +95,8 @@ export default function RegistrationFormPage() {
     setIsSubmitting(true)
 
     try {
+      // Comentar esta sección completa:
+      /*
       // Verificar que el pago se haya completado
       if (transactionId) {
         const { data: transaction, error: txError } = await supabase
@@ -116,6 +118,7 @@ export default function RegistrationFormPage() {
 
         setAdminEmail(transaction.user_email)
       }
+      */
 
       // 1. Crear restaurante
       const { data: restaurant, error: restaurantError } = await supabase
@@ -137,7 +140,7 @@ export default function RegistrationFormPage() {
       }
 
       // 2. Crear usuario
-      const userRole: UserRole = "restaurant_admin"
+      const userRole: UserRole = "root_admin"
       const userId = crypto.randomUUID()
 
       const { error: userError } = await supabase.from("users").insert({

@@ -169,7 +169,11 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
       return completeMenus
     } catch (error) {
       console.error("Error loading menus:", error)
-      toast.error("No se pudieron cargar los menús")
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los menús",
+        variant: "destructive",
+      })
       return []
     } finally {
       setIsLoading(false)
@@ -265,7 +269,11 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
       return completeMenus
     } catch (error) {
       console.error("Error loading branch menus:", error)
-      toast("No se pudieron cargar los menús de la sucursal")
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los menús de la sucursal",
+        variant: "destructive",
+      })
       return []
     } finally {
       setIsLoading(false)
@@ -353,7 +361,11 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
       return menu
     } catch (error) {
       console.error("Error loading menu:", error)
-      toast("No se pudo cargar el menú")
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el menú",
+        variant: "destructive",
+      })
       return null
     } finally {
       setIsLoading(false)
@@ -406,12 +418,19 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
       }
 
       setMenus((prevMenus) => [newMenu, ...prevMenus])
-      toast("Menú creado correctamente")
+      toast({
+        title: "Éxito",
+        description: "Menú creado correctamente",
+      })
 
       return true
     } catch (error) {
       console.error("Error en createMenu:", error)
-      toast(error instanceof Error ? error.message : "Error al crear el menú")
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al crear el menú",
+        variant: "destructive",
+      })
 
       return false
     }
@@ -503,7 +522,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Cargar categorías
-  const loadCategories = useCallback(async (): Promise<Category[]> => {
+  const loadCategories = useCallback(async (_restaurantId: string): Promise<Category[]> => {
     // Esta función podría implementarse si necesitamos cargar categorías independientemente
     // Por ahora, devolvemos un array vacío ya que las categorías se cargan con los menús
     return []
@@ -573,12 +592,19 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
           }),
         )
 
-        toast("Categoría creada correctamente")
+        toast({
+          title: "Éxito",
+          description: "Categoría creada correctamente",
+        })
 
         return true
       } catch (error) {
         console.error("Error en createCategory:", error)
-        toast(error instanceof Error ? error.message : "Error al crear la categoría")
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Error al crear la categoría",
+          variant: "destructive",
+        })
 
         return false
       }
@@ -647,7 +673,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
             return {
               ...prevMenu,
-              categories: (prevMenu.categories ?? []).map((category) =>
+              categories: prevMenu.categories.map((category) =>
                 category.id === categoryId ? { ...category, ...data, items: category.items } : category,
               ),
             }
@@ -715,7 +741,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
             return {
               ...prevMenu,
-              categories: (prevMenu.categories ?? []).filter((category) => category.id !== categoryId),
+              categories: prevMenu.categories.filter((category) => category.id !== categoryId),
             }
           })
         }
@@ -725,7 +751,10 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
           setSelectedCategory(null)
         }
 
-        toast("Categoría eliminada correctamente")
+        toast({
+          title: "Éxito",
+          description: "Categoría eliminada correctamente",
+        })
 
         return true
       } catch (error) {
@@ -733,7 +762,9 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
         toast({
           title: "Error",
           description: "No se pudo eliminar la categoría",
+          variant: "destructive",
         })
+
         return false
       }
     },
@@ -767,7 +798,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
             if (!prevMenu) return null
 
             // Ordenar las categorías según el nuevo orden
-            const sortedCategories = [...(prevMenu.categories ?? [])].sort((a, b) => {
+            const sortedCategories = [...prevMenu.categories].sort((a, b) => {
               const orderA = orderMap.get(a.id) ?? 999
               const orderB = orderMap.get(b.id) ?? 999
               return orderA - orderB
@@ -784,7 +815,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
             prevMenus.map((menu) => {
               if (menu.id === selectedMenu.id) {
                 // Ordenar las categorías según el nuevo orden
-                const sortedCategories = [...(menu.categories ?? [])].sort((a, b) => {
+                const sortedCategories = [...menu.categories].sort((a, b) => {
                   const orderA = orderMap.get(a.id) ?? 999
                   const orderB = orderMap.get(b.id) ?? 999
                   return orderA - orderB
@@ -867,7 +898,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
             return {
               ...prevMenu,
-              categories: (prevMenu.categories ?? []).map((category) => {
+              categories: prevMenu.categories.map((category) => {
                 if (category.id === itemData.category_id) {
                   return {
                     ...category,
@@ -885,7 +916,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
           prevMenus.map((menu) => {
             return {
               ...menu,
-              categories: (menu.categories ?? []).map((category) => {
+              categories: menu.categories.map((category) => {
                 if (category.id === itemData.category_id) {
                   return {
                     ...category,
@@ -950,7 +981,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
             return {
               ...prevCategory,
-              items: (prevCategory.items ?? []).map((item) => (item.id === itemId ? { ...item, ...data } : item)),
+              items: prevCategory.items.map((item) => (item.id === itemId ? { ...item, ...data } : item)),
             }
           })
         }
@@ -962,7 +993,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
             return {
               ...prevMenu,
-              categories: (prevMenu.categories ?? []).map((category) => {
+              categories: prevMenu.categories.map((category) => {
                 if (category.items?.some((item) => item.id === itemId)) {
                   return {
                     ...category,
@@ -980,7 +1011,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
           prevMenus.map((menu) => {
             return {
               ...menu,
-              categories: (menu.categories ?? []).map((category) => {
+              categories: menu.categories.map((category) => {
                 if (category.items?.some((item) => item.id === itemId)) {
                   return {
                     ...category,
@@ -1006,7 +1037,11 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
         return true
       } catch (error) {
         console.error("Error en updateMenuItem:", error)
-        toast.error(error instanceof Error ? error.message : "Error al actualizar el ítem")
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Error al actualizar el ítem",
+          variant: "destructive",
+        })
 
         return false
       }
@@ -1037,7 +1072,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
             return {
               ...prevCategory,
-              items: (prevCategory.items ?? []).filter((item) => item.id !== itemId),
+              items: prevCategory.items.filter((item) => item.id !== itemId),
             }
           })
         }
@@ -1049,7 +1084,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
             return {
               ...prevMenu,
-              categories: (prevMenu.categories ?? []).map((category) => {
+              categories: prevMenu.categories.map((category) => {
                 if (category.items?.some((item) => item.id === itemId)) {
                   return {
                     ...category,
@@ -1067,7 +1102,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
           prevMenus.map((menu) => {
             return {
               ...menu,
-              categories: (menu.categories ?? []).map((category) => {
+              categories: menu.categories.map((category) => {
                 if (category.items?.some((item) => item.id === itemId)) {
                   return {
                     ...category,
@@ -1132,7 +1167,7 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
             if (!prevCategory) return null
 
             // Ordenar los ítems según el nuevo orden
-            const sortedItems = [...(prevCategory.items ?? [])].sort((a, b) => {
+            const sortedItems = [...prevCategory.items].sort((a, b) => {
               const orderA = orderMap.get(a.id) ?? 999
               const orderB = orderMap.get(b.id) ?? 999
               return orderA - orderB
@@ -1151,10 +1186,10 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
 
               return {
                 ...prevMenu,
-                categories: (prevMenu.categories ?? []).map((category) => {
+                categories: prevMenu.categories.map((category) => {
                   if (category.id === selectedCategory.id) {
                     // Ordenar los ítems según el nuevo orden
-                    const sortedItems = [...(category.items ?? [])].sort((a, b) => {
+                    const sortedItems = [...category.items].sort((a, b) => {
                       const orderA = orderMap.get(a.id) ?? 999
                       const orderB = orderMap.get(b.id) ?? 999
                       return orderA - orderB
@@ -1176,10 +1211,10 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
             prevMenus.map((menu) => {
               return {
                 ...menu,
-                categories: (menu.categories ?? []).map((category) => {
+                categories: menu.categories.map((category) => {
                   if (category.id === selectedCategory.id) {
                     // Ordenar los ítems según el nuevo orden
-                    const sortedItems = [...(category.items ?? [])].sort((a, b) => {
+                    const sortedItems = [...category.items].sort((a, b) => {
                       const orderA = orderMap.get(a.id) ?? 999
                       const orderB = orderMap.get(b.id) ?? 999
                       return orderA - orderB
@@ -1204,7 +1239,11 @@ export function MenuDataProvider({ children }: { children: ReactNode }) {
           title: "Error",
           description: "No se pudieron reordenar los ítems",
           variant: "destructive",
-        toast.error("No se pudieron reordenar los ítems")
+        })
+
+        return false
+      }
+    },
     [selectedCategory, selectedMenu],
   )
 
